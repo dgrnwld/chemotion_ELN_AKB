@@ -11,7 +11,7 @@ module SVG
     WORD_SIZE_BASE_REPORT = 12
     WORD_SIZE_REPORT_SCALE = 2
     WORD_SIZE_BASE_SVG = 14
-    WORD_SIZE_SVG_SCALE = 1.7
+    WORD_SIZE_SVG_SCALE = 2
     ARROW_LENGTH_BASE = 120
     ARROW_LENGTH_SCALE = 50
     TIME_UNIT = {
@@ -306,7 +306,18 @@ module SVG
       XML
     end
 
-    def temperature_duration_it
+    def temp_dur_solv_cond_it
+      y_init = LINE_HEIGHT + 10
+      @temp_dur_solv_cond.map.with_index do |tdsc, index|
+        <<~XML
+          <svg font-family="sans-serif">
+            <text text-anchor="middle" x="#{arrow_width / 2}" y="#{y_init + (index * LINE_HEIGHT)}" font-size="#{word_size}">#{CGI.escapeHTML(tdsc.to_s)}</text>
+          </svg>
+        XML
+      end.join(' ')
+    end 
+
+    def temp_dur
       darray = duration&.match(/(\d+.?\d*)\s+(\w{2})/)
       show_duration = darray.present? ? "#{darray[1]} #{TIME_UNIT[darray[2].downcase]}" : nil
 
@@ -515,7 +526,6 @@ module SVG
       y_center = options[:y_center] || 0
       scale = options[:scale] || 1
       output = ''
-      vb_middle = gvba[3] / 2.round
       group_width = 0
       material_group.map.with_index do |m, ind|
         if ind.positive?
@@ -531,12 +541,16 @@ module SVG
           x_shift = group_width + 10 - vb[0]
           y_shift = (y_center - vb[3] / 2).round
           yield_svg = ''
-          yield_svg += compose_yield_svg(yield_amount, (vb[2] / 2).round, ((@max_height_for_products + vb[3]) / 2).round) if yield_amount
-          group_width += vb[2] + 10
-          svg['width'] = "#{vb[2]}px;"
-          svg['height'] = "#{vb[3]}px;"
+          yield_svg += compose_yield_svg(yield_amount, (vb[2] / 2).round, (vb[3]).round) if yield_amount
+          group_width += vb[2] + (X_OFFSET * 2)
+          # svg['width'] = "#{vb[2]}px;"
+          # svg['height'] = "#{vb[3]}px;"
 
           output += "<g transform='translate(#{x_shift}, #{y_shift})'> #{svg.inner_html}"
+
+          # output += "<rect width='#{svg['width']}' height='#{svg['height']}' fill='none' stroke='black' stroke-width='1'/>"
+          # output += "<rect width='#{vb[2]}' height='#{vb[3]}' fill='none' stroke='red' stroke-width='1'/>"
+
           output += yield_svg if @show_yield
           output += '</g>'
         end
