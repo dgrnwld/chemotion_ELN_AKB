@@ -7,7 +7,8 @@ module SVG
     REACTANT_SCALE = 0.75
     YIELD_YOFFSET = 30
     LINE_HEIGHT = 25
-    X_OFFSET = 20
+    X_SPACING = 20
+    ARROW_SPACING = 50
     PADDING = 10
     SOLVENT_LENGTH_LIMIT = 15
     CONDITION_LENGTH_LIMIT = 20
@@ -211,7 +212,7 @@ module SVG
     end
 
     def compose_reaction_svg
-      @temp_dur_solv_cond = wrap_lines(temp_dur, solvents, calculate_arrow_width, word_size) + conditions.to_s.split("\n").reject(&:blank?)
+      @temp_dur_solv_cond = wrap_lines(temp_dur, solvents, word_size) + conditions.to_s.split("\n").reject(&:blank?)
       set_global_view_box_height
       section_it
       return "#{core_template_it.strip} #{sections_string_filtered}</svg>" if @core_only
@@ -253,9 +254,11 @@ module SVG
     end
 
     def init_arrow_width
-      @arrow_width = (num_reactants * ARROW_LENGTH_SCALE) + ARROW_LENGTH_BASE
-      scl = (((solvents || []) + (conditions || '').split("\n"))&.max_by(&:length)&.length || 1) * 12
-      @arrow_width = [@arrow_width, scl].max
+      #@arrow_width = (num_reactants * ARROW_LENGTH_SCALE) + ARROW_LENGTH_BASE
+      #scl = (((solvents || []) + (conditions || '').split("\n"))&.max_by(&:length)&.length || 1) * 12
+      #@arrow_width = [@arrow_width, scl].max
+      @arrow_width = ARROW_LENGTH_BASE
+      @arrow_width = [arrow_width, calculate_arrow_width].max
     end
 
     def init_svg
@@ -303,32 +306,49 @@ module SVG
       end
     end
 
-    def wrap_lines(curr, solvents, arrow_width, word_size)
-      lines = []
-      current = curr
+    def solvent_tokens(solvents)
+      return ["(#{solvents.first})"] if solvents.length == 1
 
-      solvents.each_with_index do |solvent, index|
-        s = 
-          if solvents.length == 1
-            "(#{solvent})" # if only one solvent, put in parentheses
-          else
-            case index
-            when 0
-              "(#{solvent}," # if first solvent, open parentheses
-            when solvents.length - 1
-              "#{solvent})" # if last solvent, close parentheses
-            else
-              "#{solvent}," # if middle solvent, add comma
-            end
-          end
-        test = current.empty? ? s : "#{current} #{s}" # add solvent to current line and test if it fits within arrow width
-        if (test.length * (word_size * 0.6)) < (arrow_width - 40) # rough estimate of text width
-          current = test # if it fits, add solvent to current line
-        else # if it doesn't fit, push current line to lines array and start new line with solvent
-          lines << current
-          current = s
+      solvents.map.with_index do |solvent, index|
+        case index
+        when 0
+          "(#{solvent}," # if first solvent, open parentheses
+        when solvents.length - 1
+          "#{solvent})" # if last solvent, close parentheses
+        else
+          "#{solvent}," # if middle solvent, add comma
         end
       end
+    end
+
+    def compose_solvents(solvents)
+      solvent_tokens(solvents).join(' ')
+    end
+
+    def wrap_lines(conditions, solvents, word_size)
+      lines = []
+      tokens = solvent_tokens(solvents)
+
+      # if all solvents fit within arrow width, return as is
+      test = "#{conditions} #{tokens.join(' ')}"
+      if (test.length * word_size * 0.6) < arrow_width
+        return [test]
+      end
+
+      lines << conditions unless conditions.empty? # start solvents in new line if conditions is not empty
+      current = ''
+
+      tokens.each do |token|
+          test = current.empty? ? token : "#{current} #{token}"
+
+          if (test.length * word_size * 0.6) < arrow_width
+            current = test
+          else
+            lines << current
+            current = token
+          end
+        end
+
       lines << current unless current.empty? # push any remaining text
       lines
     end
@@ -346,7 +366,7 @@ module SVG
     def divide_it(x = 0, y = 0)
       <<~XML
         <svg font-family="sans-serif" font-size="30">
-            <text x="#{x}" y="#{y+16}">+</text>
+            <text x="#{x}" y="#{y}">+</text>
         </svg>
       XML
     end
@@ -366,11 +386,6 @@ module SVG
     def find_cond_max_height
       conditions_arr = conditions.try(:split, "\n") || []
       conditions_arr.length * LINE_HEIGHT
-    end
-
-    # assign height scale for solvent lines
-    def find_solvent_max_height
-      wrap_lines(temp_dur, solvents, arrow_width, word_size).length * LINE_HEIGHT
     end
 
     def set_global_view_box_height
@@ -490,30 +505,21 @@ module SVG
     end
 
     def calculate_arrow_width
-      group_width = 0
-      material_group = reactants
-      scale = REACTANT_SCALE
-
-      group_width = material_group.each_with_index.sum do |m, ind|
-        if ind.positive?
-          group_width += 50  # divider spacing
-          group_width += 80  # after divider
-        end
+      group_width = reactants.each_with_index.sum do |m, ind|
+        width = X_SPACING
 
         svg = inner_file_content(m)
         vb = svg && (svg['viewBox'] || svg['viewbox'])&.split(/\s+/)&.map(&:to_i) || []
 
-        unless vb.empty?
-          group_width += vb[2] + 10 # material width + spacing
-        end
+        width += vb[2] if vb.any?
+        width
       end
 
-      [([(group_width * scale).round, 50].max + 80), @arrow_width].max
+      [((group_width * REACTANT_SCALE) + (X_SPACING * 2)).round, @arrow_width].max
     end
 
     def compose_material_group(material_group, **options)
       gvba = global_view_box_array
-      w0 = gvba[2]
       x_shift = options[:start_at] || 0
       y_center = options[:y_center] || 0
       scale = options[:scale] || 1
@@ -521,42 +527,44 @@ module SVG
       group_width = 0
       material_group.map.with_index do |m, ind|
         if ind.positive?
-          output += divide_it(group_width, y_center)
-          group_width += 30 # width of plus sign
+          group_width += X_SPACING
+          unless options[:is_reactants] # if not reactants, add plus sign between materials and products
+            output += divide_it(group_width, y_center)
+            group_width += 30 # width of plus sign
+          end
         end
         material, yield_amount = *separate_material_yield(m)
         svg = inner_file_content(material)
         vb = svg && (svg['viewBox'] || svg['viewbox'])&.split(/\s+/)&.map(&:to_i) || []
 
         unless vb.empty?
-          x_shift = group_width + X_OFFSET - vb[0]
-          y_shift = options[:is_reactants] ? (y_center - vb[3] * scale).round : (y_center - vb[3] / 2 * scale).round
+          x_shift = group_width - vb[0]
+          if ind.positive?  # add x spacing if not first element
+            x_shift += X_SPACING
+            group_width += X_SPACING
+          end
+          y_shift = options[:is_reactants] ? (y_center - (vb[3] * scale)).round : (y_center - (vb[3] / 2) * scale).round
           yield_svg = ''
           yield_svg += compose_yield_svg(yield_amount, (vb[2] / 2).round, (vb[3]).round) if yield_amount
-          group_width += vb[2] + (X_OFFSET * 2)
-          # svg['width'] = "#{vb[2]}px;"
-          # svg['height'] = "#{vb[3]}px;"
+          group_width += vb[2]
 
           output += "<g transform='translate(#{x_shift}, #{y_shift})'> #{svg.inner_html}"
 
-          # output += "<rect width='#{svg['width']}' height='#{svg['height']}' fill='none' stroke='black' stroke-width='1'/>"
-          # output += "<rect width='#{vb[2]}' height='#{vb[3]}' fill='none' stroke='red' stroke-width='1'/>"
+          #output += "<rect width='#{svg['width']}' height='#{svg['height']}' fill='none' stroke='black' stroke-width='1'/>"
+          #output += "<rect width='#{vb[2]}' height='#{vb[3]}' fill='none' stroke='red' stroke-width='1'/>"
 
           output += yield_svg if @show_yield
           output += '</g>'
         end
       end
-      reactant_shift = options[:is_reactants] ? 30 : 0
-      output = "<g transform='translate(#{gvba[2] + reactant_shift}, 0)'><g transform='scale(#{scale})'> #{output} </g></g>"
+
+      #output += "<rect width='#{group_width}' height='#{gvba[3]}' fill='none' stroke='blue' stroke-width='1'/>"
+
+      reactant_shift = options[:is_reactants] ? X_SPACING : 0
+      output = "<g transform='translate(#{options[:start_at] + reactant_shift}, 0)'><g transform='scale(#{scale})'> #{output} </g></g>"
       scaled_group_width = (group_width * scale).round
 
-      if options[:arrow_width]
-        @arrow_width = [([scaled_group_width, 50].max + 80), @arrow_width].max
-        gvba[2] += arrow_width
-      else
-        gvba[2] += scaled_group_width
-      end
-      self.global_view_box_array = gvba
+      self.global_view_box_array[2] = options[:start_at] + (options[:is_reactants] ? arrow_width : scaled_group_width)
       output
     end
 
@@ -593,19 +601,14 @@ module SVG
     def section_it
       sections = {}
       y_center = y_center_position(global_view_box_array[3], @above_arrow, @below_arrow).round
-      @reactants_y_position = y_center
       sections[:starting_materials] = compose_material_group(starting_materials, start_at: 0, y_center: y_center)
-      arrow_x_shift = global_view_box_array[2] # adjust starting material to arrow
-      arrow_y_shift = y_center
-      sections[:reactants] = compose_material_group reactants,
-        start_at: global_view_box_array[2],
+      sections[:arrow] = compose_arrow_and_reaction_labels(start_at: global_view_box_array[2] + ARROW_SPACING, arrow_y_shift: y_center)
+      sections[:reactants] = compose_material_group(reactants,
+        start_at: global_view_box_array[2] + ARROW_SPACING,
         scale: REACTANT_SCALE,
-        arrow_width: true,
-        y_center: @reactants_y_position.round,
-        is_reactants: true
-      sections[:arrow] = compose_arrow_and_reaction_labels start_at: arrow_x_shift, arrow_y_shift: arrow_y_shift
-      @max_height_for_products = find_material_max_height(products)
-      sections[:products] = compose_material_group products, start_at: global_view_box_array[2], y_center: y_center
+        y_center: y_center,
+        is_reactants: true)
+      sections[:products] = compose_material_group(products, start_at: global_view_box_array[2] + ARROW_SPACING, y_center: y_center)
       @sections = sections
     end
 
