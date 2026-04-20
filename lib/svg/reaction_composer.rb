@@ -254,9 +254,6 @@ module SVG
     end
 
     def init_arrow_width
-      #@arrow_width = (num_reactants * ARROW_LENGTH_SCALE) + ARROW_LENGTH_BASE
-      #scl = (((solvents || []) + (conditions || '').split("\n"))&.max_by(&:length)&.length || 1) * 12
-      #@arrow_width = [@arrow_width, scl].max
       @arrow_width = ARROW_LENGTH_BASE
       @arrow_width = [arrow_width, calculate_arrow_width].max
     end
@@ -270,8 +267,8 @@ module SVG
       <<~XML
         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:cml="http://www.xml-cml.org/schema"
           width="#{@box_width}" height="#{@box_height}" >
+          <rect  width="#{@box_width}" height="#{@box_height}" stroke-width="1" stroke="white" fill="none"/>
           <svg width="100%" #{preserve_aspect_ratio} viewBox="#{global_view_box_array.join(' ')}" >
-            <rect x="#{global_view_box_array[0]}" y="#{global_view_box_array[1]}" width="#{global_view_box_array[2]}" height="#{global_view_box_array[3]}" stroke="black" fill="none" stroke-width="0"/>
           <title>Reaction 1</title>
       XML
     end
@@ -550,15 +547,10 @@ module SVG
 
           output += "<g transform='translate(#{x_shift}, #{y_shift})'> #{svg.inner_html}"
 
-          #output += "<rect width='#{svg['width']}' height='#{svg['height']}' fill='none' stroke='black' stroke-width='1'/>"
-          #output += "<rect width='#{vb[2]}' height='#{vb[3]}' fill='none' stroke='red' stroke-width='1'/>"
-
           output += yield_svg if @show_yield
           output += '</g>'
         end
       end
-
-      #output += "<rect width='#{group_width}' height='#{gvba[3]}' fill='none' stroke='blue' stroke-width='1'/>"
 
       reactant_shift = options[:is_reactants] ? X_SPACING : 0
       output = "<g transform='translate(#{options[:start_at] + reactant_shift}, 0)'><g transform='scale(#{scale})'> #{output} </g></g>"
