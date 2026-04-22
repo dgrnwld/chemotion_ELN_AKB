@@ -243,7 +243,7 @@ export default class ElementsList extends React.Component {
                 Clear search
               </Button>
             ) : <Search />}
-            {overview && <CreateElementButton />}
+            <CreateElementButton />
           </div>
         </div>
         <SelectionActions />

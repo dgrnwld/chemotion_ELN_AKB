@@ -450,7 +450,7 @@ const getElementSegments = (elementName, tabs) => {
     return allTabs.filter((key) => !labels.includes(key));
   }
   return _.uniq(allTabs.concat(labels));
-}
+};
 
 /**
  * Check if a material/sample is a Sequence-Based Macromolecule Sample
@@ -464,6 +464,8 @@ const isSbmmSample = (material) => {
          || material.type === 'sequence_based_macromolecule_sample'
          || material.sequence_based_macromolecule != null;
 };
+
+const isValidTemperature = (value) => /^-?\d*\.?\d{0,2}$/.test(value);
 
 export {
   rfValueFormat,
@@ -484,5 +486,6 @@ export {
   emwInStr,
   instrumentText,
   getElementSegments,
-  isSbmmSample
+  isSbmmSample,
+  isValidTemperature,
 };

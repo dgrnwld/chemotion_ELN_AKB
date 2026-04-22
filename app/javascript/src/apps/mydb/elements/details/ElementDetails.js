@@ -269,9 +269,6 @@ export default class ElementDetails extends Component {
 
     return (
       <div className="elements-details tabs-container--with-full-height">
-        <div className="d-flex justify-content-end">
-          <CreateElementButton />
-        </div>
         <Tabs
           id="elements-tabs"
           activeKey={activeKey}
