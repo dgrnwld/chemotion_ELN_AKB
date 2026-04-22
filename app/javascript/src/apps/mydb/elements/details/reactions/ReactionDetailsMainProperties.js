@@ -16,6 +16,7 @@ import { statusOptions } from 'src/components/staticDropdownOptions/options';
 import LineChartContainer from 'src/components/lineChart/LineChartContainer';
 import EditableTable from 'src/components/lineChart/EditableTable';
 import { permitOn } from 'src/components/common/uis';
+import { isValidTemperature } from 'src/utilities/ElementUtils';
 
 export default class ReactionDetailsMainProperties extends Component {
   constructor(props) {
@@ -52,6 +53,7 @@ export default class ReactionDetailsMainProperties extends Component {
     const { reaction, onInputChange } = this.props;
     const { temperature } = reaction;
     const { showTemperatureChart } = this.state;
+    const validTemperature = isValidTemperature(temperature.userText);
 
     return (
       <>
@@ -110,11 +112,11 @@ export default class ReactionDetailsMainProperties extends Component {
                   onChange={(event) => onInputChange('temperature', event)}
                 />
                 <Button
-                  disabled={!permitOn(reaction)}
+                  disabled={!permitOn(reaction) || !validTemperature}
                   variant="light"
                   onClick={() => this.changeUnit()}
                 >
-                  {temperature.valueUnit}
+                  {validTemperature ? temperature.valueUnit : ''}
                 </Button>
               </InputGroup>
             </Form.Group>
