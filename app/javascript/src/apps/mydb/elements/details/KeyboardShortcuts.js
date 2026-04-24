@@ -4,18 +4,15 @@ import { useEffect } from 'react';
 function KeyboardShortcuts({ onDown }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.ctrlKey && e.key === 's') {
-        e.preventDefault();
-        onDown();
-      }
+      onDown(e);
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, []);
+  }, [onDown]);
 
   return null; // This component renders nothing
 }

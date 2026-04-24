@@ -17,6 +17,7 @@ export default function DetailCard({
   footerToolbar,
   onClose,
   className,
+  closeButtonRef,
 }) {
   const classes = `detail-card${className ? ` ${className}` : ''}`;
 
@@ -48,7 +49,9 @@ export default function DetailCard({
           </div>
           <div className="d-flex gap-1 align-items-center">
             {headerToolbar}
-            <CloseButton onClick={handleClose} />
+            <div ref={closeButtonRef}>
+              <CloseButton onClick={handleClose} />
+            </div>
           </div>
         </div>
       </Card.Header>
@@ -78,6 +81,7 @@ DetailCard.propTypes = {
   footerToolbar: PropTypes.node,
   onClose: PropTypes.func,
   className: PropTypes.string,
+  closeButtonRef: PropTypes.shape({ current: PropTypes.instanceOf(Element) }),
 };
 
 DetailCard.defaultProps = {
@@ -88,4 +92,5 @@ DetailCard.defaultProps = {
   footerToolbar: null,
   onClose: null,
   className: null,
+  closeButtonRef: null,
 };

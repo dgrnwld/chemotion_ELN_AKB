@@ -19,6 +19,7 @@ import {
   detailFooterButton,
 } from 'src/apps/mydb/elements/details/DetailCardButton';
 import DetailCard from 'src/apps/mydb/elements/details/DetailCard';
+import KeyboardShortcuts from 'src/apps/mydb/elements/details/KeyboardShortcuts';
 
 export default function ElementDetailCard({
   children,
@@ -41,6 +42,7 @@ export default function ElementDetailCard({
   const [showCloseOverlay, setShowCloseOverlay] = React.useState(false);
   const [closeOverlayTarget, setCloseOverlayTarget] = React.useState(null);
   const [closeOverlayPlacement, setCloseOverlayPlacement] = React.useState('bottom');
+  const [closeRequested, setCloseRequested] = React.useState(false);  
 
   // Get the correct eventableType for calendar API
   const getEventableType = (el) => {
@@ -116,9 +118,10 @@ export default function ElementDetailCard({
     iconClass: 'fa fa-floppy-o combi-icon-close',
   };
 
+  const closeButtonRef = React.useRef(null);
   const requestClose = (event, forceClose = false, placement = 'bottom') => {
     if (pendingToSave && !forceClose) {
-      setCloseOverlayTarget(event.currentTarget);
+      setCloseOverlayTarget(event?.currentTarget ?? closeButtonRef.current ?? null);
       setCloseOverlayPlacement(placement);
       setShowCloseOverlay(true);
       return;
@@ -127,12 +130,37 @@ export default function ElementDetailCard({
     handleClose(forceClose);
   };
 
+  const handleKeyboardShortcut = React.useCallback((e) => {
+    if (e.ctrlKey && e.code === 'KeyS') {
+      e.preventDefault();
+      if (pendingToSave) {
+        onSave();
+      }
+    } else if (e.code === 'Escape') {
+      e.preventDefault();
+      if (pendingToSave) {
+        requestClose();
+      } else {
+        setCloseRequested(true);
+      }
+      // console.trace('Escape stack trace');
+    } else if (e.code === 'Enter') {
+      // Enter
+    }
+  }, [pendingToSave, onSave]);
+
+  React.useEffect(() => {
+    if (!closeRequested) return;
+    requestClose();
+    setCloseRequested(false);
+  }, [closeRequested]);
+
   const closeOverlay = (
     <Overlay
       target={closeOverlayTarget}
       show={showCloseOverlay}
       placement={closeOverlayPlacement}
-      rootClose
+      rootClose={false}
       onHide={() => setShowCloseOverlay(false)}
     >
       <Tooltip id="detail-card-close-overlay">
@@ -228,9 +256,11 @@ export default function ElementDetailCard({
       footerToolbar={elementFooterToolbar}
       onClose={(event) => requestClose(event, false, 'bottom')}
       className={pendingToSave ? 'detail-card--unsaved' : ''}
+      closeButtonRef={closeButtonRef}
     >
       {children}
       {closeOverlay}
+      <KeyboardShortcuts onDown={handleKeyboardShortcut} />
     </DetailCard>
   );
 }
